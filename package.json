@@ -1,0 +1,24 @@
+{
+  "name": "psp-backend",
+  "version": "1.0.0",
+  "description": "Node.js backend for the PSP project using the Express framework",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Bicorpro/psp-backend.git"
+  },
+  "author": "Bicorpro",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Bicorpro/psp-backend/issues"
+  },
+  "homepage": "https://github.com/Bicorpro/psp-backend#readme",
+  "dependencies": {
+    "bcrypt": "^5.0.1",
+    "body-parser": "^1.19.1",
+    "express": "^4.17.1"
+  }
+}
