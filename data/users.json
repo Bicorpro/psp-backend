@@ -4,5 +4,11 @@
     "email": "johndoe@gmail.com",
     "password": "$2b$10$uT.howHZGSQxGUl92mpm1eOgTWRNjE7vtTWt2urUn/JjJt5Fbhjr2",
     "devices": ["E24F43FFFE44D05F"]
+  },
+  {
+    "username": "gogo",
+    "email": "gogo@gmail.com",
+    "password": "$2b$10$hL9BIWGh2MPJFwKIapJDk.4Bgm8m7WRV3TTxbUHyXDBfajnLvTty.",
+    "devices": ["0123456789ABCABC", "0123456789ABFABC", "0123456789ABFABF"]
   }
 ]

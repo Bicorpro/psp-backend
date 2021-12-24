@@ -5,5 +5,6 @@
       "port": 443
     }
   },
+  "secret": "TODO: Replace this message with an actual secret later",
   "jwt": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJjaGlycHN0YWNrLWFwcGxpY2F0aW9uLXNlcnZlciIsImV4cCI6MTYzODg2NTI4MCwiaXNzIjoiY2hpcnBzdGFjay1hcHBsaWNhdGlvbi1zZXJ2ZXIiLCJuYmYiOjE2Mzg3Nzg4ODAsInN1YiI6InVzZXIiLCJ1c2VybmFtZSI6IkluZm81RzMifQ.061Vy1YuOqISwEzucUiI-Sc8Q-NJyMJwUucDGWd7xmU"
 }

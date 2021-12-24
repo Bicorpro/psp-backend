@@ -2,6 +2,7 @@
 const fs = require("fs");
 const express = require("express");
 const bodyParser = require("body-parser");
+var session = require("express-session");
 const https = require("https");
 const bcrypt = require("bcrypt");
 
@@ -15,6 +16,17 @@ const db_devices = require("./data/devices.json");
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
+
+// Use the session middleware
+app.use(
+  session({
+    secret: config.secret,
+    resave: false,
+    saveUninitialized: true,
+    cookie: { maxAge: 1800000 },
+  })
+);
+
 const port = 3000;
 
 const saltRounds = 10;
@@ -29,8 +41,8 @@ app.get("/", (_, res) => {
   res.send("Hello World!");
 });
 
-app.get("/api", (_req, res) => {
-  res.send("Hello api!");
+app.get("/api", (req, res) => {
+  res.send("The API is up and running!");
 });
 
 app.post("/api/users/register", (req, res) => {
@@ -48,18 +60,27 @@ app.post("/api/users/register", (req, res) => {
     }
 
     if (db_users.find((user) => user.username === username)) {
-      res.send(`User already exists!`);
+      res.send(`Username already used`);
       return;
     }
 
     if (db_users.find((user) => user.email === email)) {
-      res.send(`An account has already been registered with this email!`);
+      res.send(`Email already used`);
       return;
     }
 
-    // Generates a salt and hashes the new user's password
     bcrypt.genSalt(saltRounds, function (err, salt) {
+      if (err) {
+        console.log(err);
+        return;
+      }
+
       bcrypt.hash(password, salt, function (err, hash) {
+        if (err) {
+          console.log(err);
+          return;
+        }
+
         // create the new user
         const niu = {
           username: username,
@@ -97,25 +118,76 @@ app.post("/api/users/authenticate", (req, res) => {
 
   if (!user) {
     res.send("Invalid login");
+    return;
   }
 
   // Load hash from your password DB.
   bcrypt.compare(password, user.password, function (err, result) {
     if (result) {
+      req.session.user = user.username;
       res.send(`hey ${user.username}!`);
-    } else {
-      res.send("Invalid login");
       /**
        * TODO: Create and send a new cookie to identify the authentified user??
        * TODO: This cookie will be provided by the user every time they use the API??
        */
+    } else {
+      res.send("Invalid login");
     }
   });
 });
 
 app.post("/api/devices/register", (req, res) => {
-  const _POST_deviceID = "";
-  const _POST_session_cookie = "";
+  if (req.session.user) {
+    const user = db_users.find((usr) => usr.username === req.session.user);
+
+    if (!user) {
+      // TODO: I dunno what to do, this should never happen
+      res.send("Database corrupted, this should not have happened");
+      return;
+    }
+
+    const eid = req.body.eid;
+
+    if (!validator.isEIDValid(eid)) {
+      res.send(`Sorry ${user.username} but ${eid} is not a valid eid!`);
+      return;
+    }
+
+    if (user.devices.find((devEID) => devEID === eid)) {
+      res.send(
+        `Sorry ${user.username} but you have already registered this device`
+      );
+      return;
+    }
+
+    if (db_users.find((usr) => usr.devices.find((devEID) => devEID === eid))) {
+      res.send(
+        `Sorry ${user.username} but this device has already been registered by someone else`
+      );
+      return;
+    }
+
+    // TODO: before registering the device, we should check with CampusIoT to ensure the device is a legitimate one
+
+    user.devices.push(eid);
+    // convert JSON object to a string
+    const data = JSON.stringify(db_users);
+
+    // write file to disk
+    fs.writeFile("./data/users.json", data, "utf8", (err) => {
+      if (err) {
+        console.log(`Error writing file: ${err}`);
+      } else {
+        console.log(`File is written successfully!`);
+      }
+    });
+
+    res.send(
+      `Device with eid ${eid} has successfully been registered ${user.username}`
+    );
+  } else {
+    res.send("You need to be authentified to use that method!");
+  }
 
   // retrieve user from cookie
   // check if device is a valid tracker

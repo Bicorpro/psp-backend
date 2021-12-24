@@ -29,3 +29,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **_TODO: Set a session Cookie server-side to keep track of the authentified user and send them the cookie_**
 
 - Added default route in API to redirect to 404
+
+## [1.0.2] - 2021-12-24
+
+### Added
+
+- Implemented cookies using the **express-session** package:
+  - Added a specific server-side cookie to keep track of authenticated users using the given session ID
+- Added error logging for **bcrypt** related function calls (salt generation + hash)
+- Implemented **/api/devices/register** route in API:
+  - Added new validator **isEIDValid** in [validator.js](./validator.js) to validate sent EIDs
+  - Added the possibility for an authenticated user to register a device to their account
+  - **_TODO:_ Make an API call to CampusIoT to check that the device is a legitimate one**

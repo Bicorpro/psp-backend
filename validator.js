@@ -20,18 +20,23 @@ function isPasswordValid(password) {
   );
 }
 
+// The eid must be a valid hexadecimal value of length 16
+function isEIDValid(eid) {
+  return eid && eid.match(/[0-9a-fA-F]{16}/);
+}
+
 function validateUserRegisterForm(username, email, password, callback) {
   let err;
 
   if (!isUsernameValid(username)) {
-    err = "Sadge invalid username";
+    err = "Username format invalid";
   } else if (!isEmailValid(email)) {
-    err = "Sadge ur email sucks";
+    err = "Email format invalid";
   } else if (!isPasswordValid(password)) {
-    err = "ur password is a weak ass mf";
+    err = "Password should be at least 8 characters";
   }
 
   callback(err);
 }
 
-module.exports = { validateUserRegisterForm };
+module.exports = { validateUserRegisterForm, isEIDValid };
