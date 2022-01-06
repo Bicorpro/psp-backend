@@ -22,7 +22,7 @@ function isPasswordValid(password) {
 
 // The eid must be a valid hexadecimal value of length 16
 function isEIDValid(eid) {
-  return eid && eid.match(/[0-9a-fA-F]{16}/);
+  return eid && eid.match(/^[0-9a-fA-F]{16}$/);
 }
 
 function validateUserRegisterForm(username, email, password, callback) {
@@ -33,7 +33,7 @@ function validateUserRegisterForm(username, email, password, callback) {
   } else if (!isEmailValid(email)) {
     err = "Email format invalid";
   } else if (!isPasswordValid(password)) {
-    err = "Password should be at least 8 characters";
+    err = "Password format invalid";
   }
 
   callback(err);

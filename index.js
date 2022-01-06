@@ -1,13 +1,16 @@
 // Node dependencies
+const axios = require("axios");
 const fs = require("fs");
+
 const express = require("express");
 const bodyParser = require("body-parser");
 var session = require("express-session");
-const https = require("https");
+
 const bcrypt = require("bcrypt");
 
 // Local dependencies
 const validator = require("./validator.js");
+const nv = require("./novlog.js");
 
 // Load configuration and data files
 const config = require("./config.json");
@@ -23,29 +26,51 @@ app.use(
     secret: config.secret,
     resave: false,
     saveUninitialized: true,
-    cookie: { maxAge: 1800000 },
+    cookie: { maxAge: 1800000 }, // 1800000 is equal to 30 minutes before a cookie expires
   })
 );
 
-const port = 3000;
-
-const saltRounds = 10;
-
-// !unsecure way : deactivating certificate checks
+// !insecure way : deactivating certificate checks
 process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = 0;
 
 // proper way to allow CampusIot -> download SSL certificate
 //require("https").globalAgent.options.ca = require("ssl-root-cas/latest").create();
 
-app.get("/", (_, res) => {
-  res.send("Hello World!");
+// Get JWT token asynchronously
+// ! Since it takes a little bit of time to get the JWT, it is better to wait a little bit before issuing any API method (especially ones involving the LoRaWan server)
+let JWT_TOKEN;
+getJWT().then((data) => {
+  JWT_TOKEN = data;
+});
+
+app.get("/", (req, res) => {
+  nv.log(req);
+  res.send("Hello World! Go to /api to use the api");
 });
 
 app.get("/api", (req, res) => {
-  res.send("The API is up and running!");
+  nv.log(req);
+  let msg = "The API is up and running!<br/>Supported methods are:<br/>";
+  msg += "POST /api/users/register<br/>";
+  msg += "...<br/>";
+  res.send(msg);
 });
 
+/**
+ * @api [post] /api/users/register
+ * description: "Creates a new user in the database matching the information given by the user"
+ * parameters:
+ *  - (query) username  {String} The username of the user
+ *  - (query) email     {String} The email adress of the user
+ *  - (query) password  {String} The password of the user
+ * responses:
+ *  200:
+ *    description: The user has been succesfully registered
+ *  400:
+ *    description: The user could not be registered
+ */
 app.post("/api/users/register", (req, res) => {
+  nv.log(req);
   // Get username, email and password from POST body
   const username = req.body.username;
   const email = req.body.email;
@@ -55,21 +80,30 @@ app.post("/api/users/register", (req, res) => {
   validator.validateUserRegisterForm(username, email, password, (err) => {
     // if the form information is invalid, send the error to the frontend
     if (err) {
-      res.send(err);
+      res.status(400).json({
+        status: "ERROR",
+        error: err,
+      });
       return;
     }
 
     if (db_users.find((user) => user.username === username)) {
-      res.send(`Username already used`);
+      res.status(400).json({
+        status: "ERROR",
+        error: "Username already taken",
+      });
       return;
     }
 
     if (db_users.find((user) => user.email === email)) {
-      res.send(`Email already used`);
+      res.status(400).json({
+        status: "ERROR",
+        error: "Email already in use",
+      });
       return;
     }
 
-    bcrypt.genSalt(saltRounds, function (err, salt) {
+    bcrypt.genSalt(config.saltRounds, function (err, salt) {
       if (err) {
         console.log(err);
         return;
@@ -78,6 +112,10 @@ app.post("/api/users/register", (req, res) => {
       bcrypt.hash(password, salt, function (err, hash) {
         if (err) {
           console.log(err);
+          res.status(400).json({
+            status: "ERROR",
+            error: "Unknown error during registration",
+          });
           return;
         }
 
@@ -90,25 +128,18 @@ app.post("/api/users/register", (req, res) => {
         };
         db_users.push(niu);
 
-        // convert JSON object to a string
-        const data = JSON.stringify(db_users);
-
-        // write file to disk
-        fs.writeFile("./data/users.json", data, "utf8", (err) => {
-          if (err) {
-            console.log(`Error writing file: ${err}`);
-          } else {
-            console.log(`File is written successfully!`);
-          }
-        });
+        writeJSONToFile(db_users, "./data/users.json");
       });
     });
 
-    res.sendStatus(200);
+    res.status(200).json({
+      status: "OK",
+    });
   });
 });
 
 app.post("/api/users/authenticate", (req, res) => {
+  nv.log(req);
   const username = req.body.username;
   const password = req.body.password;
 
@@ -117,7 +148,10 @@ app.post("/api/users/authenticate", (req, res) => {
   );
 
   if (!user) {
-    res.send("Invalid login");
+    res.status(400).json({
+      status: "ERROR",
+      error: "Invalid login",
+    });
     return;
   }
 
@@ -125,69 +159,97 @@ app.post("/api/users/authenticate", (req, res) => {
   bcrypt.compare(password, user.password, function (err, result) {
     if (result) {
       req.session.user = user.username;
-      res.send(`hey ${user.username}!`);
-      /**
-       * TODO: Create and send a new cookie to identify the authentified user??
-       * TODO: This cookie will be provided by the user every time they use the API??
-       */
+      res.status(200).json({
+        status: "OK",
+      });
     } else {
-      res.send("Invalid login");
+      res.status(400).json({
+        status: "ERROR",
+        error: "Invalid login",
+      });
     }
   });
 });
 
-app.post("/api/devices/register", (req, res) => {
-  if (req.session.user) {
-    const user = db_users.find((usr) => usr.username === req.session.user);
+/**
+ * How likely is it that an attacker making API calls with all possible eid
+ * manage to register random device on the globe? We need to address this problem:
+ * - Notify all users who have registered a device when a new user registers it
+ * - Secure each device with a factory password to decrease the likeliness of random guessing
+ * - Limit API usage to prevent a user from making thousands of calls per second
+ * - Let it be as is (Since there are 16^16 possibles EIDs, it should take an average computer 500 years to try them all)
+ */
+app.post("/api/devices/:eid([0-9a-fA-F]{16})", (req, res) => {
+  nv.log(req);
 
-    if (!user) {
-      // TODO: I dunno what to do, this should never happen
-      res.send("Database corrupted, this should not have happened");
-      return;
-    }
-
-    const eid = req.body.eid;
-
-    if (!validator.isEIDValid(eid)) {
-      res.send(`Sorry ${user.username} but ${eid} is not a valid eid!`);
-      return;
-    }
-
-    if (user.devices.find((devEID) => devEID === eid)) {
-      res.send(
-        `Sorry ${user.username} but you have already registered this device`
-      );
-      return;
-    }
-
-    if (db_users.find((usr) => usr.devices.find((devEID) => devEID === eid))) {
-      res.send(
-        `Sorry ${user.username} but this device has already been registered by someone else`
-      );
-      return;
-    }
-
-    // TODO: before registering the device, we should check with CampusIoT to ensure the device is a legitimate one
-
-    user.devices.push(eid);
-    // convert JSON object to a string
-    const data = JSON.stringify(db_users);
-
-    // write file to disk
-    fs.writeFile("./data/users.json", data, "utf8", (err) => {
-      if (err) {
-        console.log(`Error writing file: ${err}`);
-      } else {
-        console.log(`File is written successfully!`);
-      }
+  if (!req.session.user) {
+    res.status(401).json({
+      status: "ERROR",
+      error: "Authentication required",
     });
-
-    res.send(
-      `Device with eid ${eid} has successfully been registered ${user.username}`
-    );
-  } else {
-    res.send("You need to be authentified to use that method!");
+    return;
   }
+
+  const user = db_users.find((usr) => usr.username === req.session.user);
+
+  if (!user) {
+    // TODO: I dunno what to do, this should never happen
+    res.status(456).json({
+      status: "ERROR",
+      error: "Database got corrupted, please contact an administrator",
+    });
+    return;
+  }
+
+  const eid = req.params.eid;
+
+  if (!validator.isEIDValid(eid)) {
+    res.status(400).json({
+      status: "ERROR",
+      error: "EID format invalid",
+    });
+    return;
+  }
+
+  if (user.devices.find((devEID) => devEID === eid)) {
+    res.status(400).json({
+      status: "ERROR",
+      error: "Device already registered",
+    });
+    return;
+  }
+
+  axios
+    .get(`${config.LoRaWan.endpoint.host}/devices/${eid}`, {
+      headers: { "Grpc-Metadata-Authorization": `Bearer ${JWT_TOKEN}` },
+    })
+    .then(() => {
+      user.devices.push(eid);
+      writeJSONToFile(db_users, "./data/users.json");
+
+      let device = db_devices.find((dev) => dev.eid === eid);
+
+      if (!device) {
+        db_devices.push({
+          eid: eid,
+          owners: [user.username],
+          positions: [],
+        });
+      } else {
+        device.owners.push(user.username);
+      }
+      writeJSONToFile(db_devices, "./data/devices.json");
+      res.status(200).json({
+        status: "OK",
+      });
+    })
+    .catch((err) => {
+      console.error(err);
+      res.status(400).json({
+        status: "ERROR",
+        error: "Device could not be registered",
+      });
+    });
 
   // retrieve user from cookie
   // check if device is a valid tracker
@@ -196,57 +258,161 @@ app.post("/api/devices/register", (req, res) => {
   // if device and user are legitimate, return success
 });
 
-app.delete("/api/devices/:id([0-9a-fA-F]{16})/delete", (req, res) => {
-  // unbind tracker from user
-  //! tracker will be free and anyone with the ID will be allowed to register it
-});
+app.delete("/api/devices/:eid([0-9a-fA-F]{16})", (req, res) => {
+  nv.log(req);
 
-app.get("/api/devices/:id([0-9a-fA-F]{16})/pos", (req, res) => {
-  const deviceID = req.params["id"];
-  const USER_TOKEN = config.jwt;
-
-  const AuthStr = "Bearer ".concat(USER_TOKEN);
-  const options = {
-    hostname: config.LoRaWan.endpoint.host,
-    port: config.LoRaWan.endpoint.port,
-    path: "/api/devices/" + deviceID,
-    method: "GET",
-    headers: {
-      Authorization: AuthStr,
-    },
-  };
-
-  const req1 = https.request(options, (res2) => {
-    console.log(`statusCode: ${res.statusCode}`);
-
-    res2.on("data", (d) => {
-      const device = JSON.parse(d);
-      console.log(device);
-
-      if (device.device) {
-        // TODO: fetch gps data from CampusIot
-        let gps = {
-          x: 1,
-          y: 2,
-        };
-        res.json({ device: deviceID, gps: gps });
-      } else {
-        res.json({ error: "unknown device id" });
-      }
+  if (!req.session.user) {
+    res.status(401).json({
+      status: "ERROR",
+      error: "Authentication required",
     });
+    return;
+  }
+
+  const user = db_users.find((usr) => usr.username === req.session.user);
+
+  if (!user) {
+    // TODO: I dunno what to do, this should never happen
+    res.status(456).json({
+      status: "ERROR",
+      error: "Database got corrupted, please contact an administrator",
+    });
+    return;
+  }
+
+  const eid = req.params.eid;
+
+  if (!validator.isEIDValid(eid)) {
+    res.status(400).json({
+      status: "ERROR",
+      error: "EID format invalid",
+    });
+    return;
+  }
+
+  if (!user.devices.find((devEID) => devEID === eid)) {
+    res.status(400).json({
+      status: "ERROR",
+      error: "Device has not been registered",
+    });
+    return;
+  }
+
+  user.devices = user.devices.filter((devEID) => devEID !== eid);
+  writeJSONToFile(db_users, "./data/users.json");
+
+  let device = db_devices.find((dev) => dev.eid === eid);
+
+  if (!device) {
+    // TODO: I dunno what to do, this should never happen
+    res.status(456).json({
+      status: "ERROR",
+      error: "Database got corrupted, please contact an administrator",
+    });
+    return;
+  } else {
+    device.owners = device.owners.filter((usr) => usr !== user.username);
+  }
+  writeJSONToFile(db_devices, "./data/devices.json");
+  res.status(200).json({
+    status: "OK",
   });
+});
 
-  req1.on("error", (error) => {
-    console.error(error);
+app.get("/api/devices", (req, res) => {
+  nv.log(req);
+
+  if (!req.session.user) {
+    res.status(401).json({
+      status: "ERROR",
+      error: "Authentication required",
+    });
+    return;
+  }
+
+  const user = db_users.find((usr) => usr.username === req.session.user);
+
+  if (!user) {
+    // TODO: I dunno what to do, this should never happen
+    res.status(456).json({
+      status: "ERROR",
+      error: "Database got corrupted, please contact an administrator",
+    });
+    return;
+  }
+
+  res.status(200).json({
+    devices: user.devices,
   });
-
-  req1.end();
 });
 
-app.use(function (_, res) {
-  res.sendStatus(404);
+app.get("/api/devices/:eid([0-9a-fA-F]{16})", (req, res) => {
+  nv.log(req);
+
+  // TODO: Make sure user is authenticated
+  if (false && !req.session.user) {
+    res.status(401).json({
+      status: "ERROR",
+      error: "Authentication required",
+    });
+    return;
+  }
+
+  const eid = req.params.eid;
+
+  axios
+    .get(`${config.LoRaWan.endpoint.host}/devices/${eid}`, {
+      headers: { "Grpc-Metadata-Authorization": `Bearer ${JWT_TOKEN}` },
+    })
+    .then((res2) => {
+      console.log(res2);
+      res.send(res2.data.device.description);
+    })
+    .catch((err) => {
+      console.log(err);
+      res.send("An error occured");
+    });
 });
 
-app.listen(port, () => {
-  console.log(`psp-backend listening at http://localhost:${port}`);
+app.use(function (req, res) {
+  nv.log(req);
+  res.status(404).json({
+    status: "ERROR",
+    error: "Page not found",
+  });
 });
+
+app.listen(config.port, () => {
+  console.log(`psp-backend listening at http://localhost:${config.port}`);
+});
+
+function getJWT() {
+  // POST request to LoRaWan endpoint with group credentials to obtain a valid JWT
+  return axios
+    .post(
+      config.LoRaWan.endpoint.host + "/internal/login",
+      config.LoRaWan.endpoint.credentials
+    )
+    .then((res) => {
+      console.log(`JWT token successfully retrieved: ${res.data.jwt}`);
+      return res.data.jwt;
+    })
+    .catch((error) => {
+      console.error(error);
+      return null;
+    });
+}
+
+function writeJSONToFile(obj, path) {
+  // Convert JSON object to a string
+  const data = JSON.stringify(obj);
+
+  // Attempt to write file to disk
+  fs.writeFile(path, data, "utf8", (err) => {
+    if (err) {
+      console.error(`Error writing data to ${path}: ${err}`);
+    } else {
+      console.log(`Successfully updated data in ${path}!`);
+    }
+  });
+}

@@ -1,10 +1,15 @@
 {
+  "port": 3000,
+  "secret": "TODO: Replace this message with an actual secret later",
+  "saltRounds": 10,
   "LoRaWan": {
     "endpoint": {
-      "host": "lns.campusiot.imag.fr",
-      "port": 443
+      "host": "https://lns.campusiot.imag.fr/api",
+      "port": 443,
+      "credentials": {
+        "username": "Info5G3",
+        "password": "wAlO+oVOMvpoDw=="
+      }
     }
-  },
-  "secret": "TODO: Replace this message with an actual secret later",
-  "jwt": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJjaGlycHN0YWNrLWFwcGxpY2F0aW9uLXNlcnZlciIsImV4cCI6MTYzODg2NTI4MCwiaXNzIjoiY2hpcnBzdGFjay1hcHBsaWNhdGlvbi1zZXJ2ZXIiLCJuYmYiOjE2Mzg3Nzg4ODAsInN1YiI6InVzZXIiLCJ1c2VybmFtZSI6IkluZm81RzMifQ.061Vy1YuOqISwEzucUiI-Sc8Q-NJyMJwUucDGWd7xmU"
+  }
 }
