@@ -14,6 +14,7 @@ const nv = require("./novlog.js");
 
 // Load configuration and data files
 const config = require("./config.json");
+const credentials = require("./credentials.json");
 const db_users = require("./data/users.json");
 const db_devices = require("./data/devices.json");
 
@@ -44,12 +45,12 @@ getJWT().then((data) => {
 });
 
 app.get("/", (req, res) => {
-  nv.log(req);
+  nv.request(req);
   res.send("Hello World! Go to /api to use the api");
 });
 
 app.get("/api", (req, res) => {
-  nv.log(req);
+  nv.request(req);
   let msg = "The API is up and running!<br/>Supported methods are:<br/>";
   msg += "POST /api/users/register<br/>";
   msg += "...<br/>";
@@ -70,7 +71,7 @@ app.get("/api", (req, res) => {
  *    description: The user could not be registered
  */
 app.post("/api/users/register", (req, res) => {
-  nv.log(req);
+  nv.request(req);
   // Get username, email and password from POST body
   const username = req.body.username;
   const email = req.body.email;
@@ -80,6 +81,7 @@ app.post("/api/users/register", (req, res) => {
   validator.validateUserRegisterForm(username, email, password, (err) => {
     // if the form information is invalid, send the error to the frontend
     if (err) {
+      nv.info(`Register form error: ${err}`);
       res.status(400).json({
         status: "ERROR",
         error: err,
@@ -88,6 +90,7 @@ app.post("/api/users/register", (req, res) => {
     }
 
     if (db_users.find((user) => user.username === username)) {
+      nv.info("Register form error: Username already taken");
       res.status(400).json({
         status: "ERROR",
         error: "Username already taken",
@@ -96,6 +99,7 @@ app.post("/api/users/register", (req, res) => {
     }
 
     if (db_users.find((user) => user.email === email)) {
+      nv.info("Register form error: Email already in use");
       res.status(400).json({
         status: "ERROR",
         error: "Email already in use",
@@ -105,13 +109,13 @@ app.post("/api/users/register", (req, res) => {
 
     bcrypt.genSalt(config.saltRounds, function (err, salt) {
       if (err) {
-        console.log(err);
+        nv.error(err);
         return;
       }
 
       bcrypt.hash(password, salt, function (err, hash) {
         if (err) {
-          console.log(err);
+          nv.error(err);
           res.status(400).json({
             status: "ERROR",
             error: "Unknown error during registration",
@@ -132,6 +136,7 @@ app.post("/api/users/register", (req, res) => {
       });
     });
 
+    nv.info(`User ${username} successfully registered`);
     res.status(200).json({
       status: "OK",
     });
@@ -139,7 +144,7 @@ app.post("/api/users/register", (req, res) => {
 });
 
 app.post("/api/users/authenticate", (req, res) => {
-  nv.log(req);
+  nv.request(req);
   const username = req.body.username;
   const password = req.body.password;
 
@@ -148,6 +153,7 @@ app.post("/api/users/authenticate", (req, res) => {
   );
 
   if (!user) {
+    nv.info(`Unregistered user ${username} attempted to login`);
     res.status(400).json({
       status: "ERROR",
       error: "Invalid login",
@@ -159,10 +165,12 @@ app.post("/api/users/authenticate", (req, res) => {
   bcrypt.compare(password, user.password, function (err, result) {
     if (result) {
       req.session.user = user.username;
+      nv.info(`Successfull authentication for ${username}`);
       res.status(200).json({
         status: "OK",
       });
     } else {
+      nv.error(err);
       res.status(400).json({
         status: "ERROR",
         error: "Invalid login",
@@ -172,28 +180,25 @@ app.post("/api/users/authenticate", (req, res) => {
 });
 
 /**
- * How likely is it that an attacker making API calls with all possible eid
+ * How likely is it that an attacker making API calls with all possible EUIs
  * manage to register random device on the globe? We need to address this problem:
  * - Notify all users who have registered a device when a new user registers it
  * - Secure each device with a factory password to decrease the likeliness of random guessing
  * - Limit API usage to prevent a user from making thousands of calls per second
- * - Let it be as is (Since there are 16^16 possibles EIDs, it should take an average computer 500 years to try them all)
+ * - Let it be as is (Since there are 16^16 possibles EUIs, it should take an average computer 500 years to try them all)
  */
-app.post("/api/devices/:eid([0-9a-fA-F]{16})", (req, res) => {
-  nv.log(req);
+app.post("/api/devices/:eui([0-9a-fA-F]{16})", (req, res) => {
+  nv.request(req);
 
-  if (!req.session.user) {
-    res.status(401).json({
-      status: "ERROR",
-      error: "Authentication required",
-    });
-    return;
-  }
+  if (!verifyAuthentication(req, res)) return;
 
   const user = db_users.find((usr) => usr.username === req.session.user);
 
   if (!user) {
     // TODO: I dunno what to do, this should never happen
+    nv.error(
+      "Database corruption: previously authenticated user is no longer a valid user"
+    );
     res.status(456).json({
       status: "ERROR",
       error: "Database got corrupted, please contact an administrator",
@@ -201,17 +206,19 @@ app.post("/api/devices/:eid([0-9a-fA-F]{16})", (req, res) => {
     return;
   }
 
-  const eid = req.params.eid;
+  const eui = req.params.eui;
 
-  if (!validator.isEIDValid(eid)) {
+  // TODO: Not sure this check is relevant since Express already filters the route based on a regex
+  if (!validator.isEUIValid(eui)) {
     res.status(400).json({
       status: "ERROR",
-      error: "EID format invalid",
+      error: "EUI format invalid",
     });
     return;
   }
 
-  if (user.devices.find((devEID) => devEID === eid)) {
+  if (user.devices.find((devEUI) => devEUI === eui)) {
+    nv.info(`Device ${eui} already registered by ${user.username}`);
     res.status(400).json({
       status: "ERROR",
       error: "Device already registered",
@@ -220,18 +227,18 @@ app.post("/api/devices/:eid([0-9a-fA-F]{16})", (req, res) => {
   }
 
   axios
-    .get(`${config.LoRaWan.endpoint.host}/devices/${eid}`, {
+    .get(`${config.LoRaWan.endpoint.host}/devices/${eui}`, {
       headers: { "Grpc-Metadata-Authorization": `Bearer ${JWT_TOKEN}` },
     })
     .then(() => {
-      user.devices.push(eid);
+      user.devices.push(eui);
       writeJSONToFile(db_users, "./data/users.json");
 
-      let device = db_devices.find((dev) => dev.eid === eid);
+      let device = db_devices.find((dev) => dev.eui === eui);
 
       if (!device) {
         db_devices.push({
-          eid: eid,
+          eui: eui,
           owners: [user.username],
           positions: [],
         });
@@ -239,12 +246,13 @@ app.post("/api/devices/:eid([0-9a-fA-F]{16})", (req, res) => {
         device.owners.push(user.username);
       }
       writeJSONToFile(db_devices, "./data/devices.json");
+      nv.info(`Device ${eui} successfully registered by ${user.username}`);
       res.status(200).json({
         status: "OK",
       });
     })
     .catch((err) => {
-      console.error(err);
+      nv.error(err);
       res.status(400).json({
         status: "ERROR",
         error: "Device could not be registered",
@@ -258,21 +266,18 @@ app.post("/api/devices/:eid([0-9a-fA-F]{16})", (req, res) => {
   // if device and user are legitimate, return success
 });
 
-app.delete("/api/devices/:eid([0-9a-fA-F]{16})", (req, res) => {
-  nv.log(req);
+app.delete("/api/devices/:eui([0-9a-fA-F]{16})", (req, res) => {
+  nv.request(req);
 
-  if (!req.session.user) {
-    res.status(401).json({
-      status: "ERROR",
-      error: "Authentication required",
-    });
-    return;
-  }
+  if (!verifyAuthentication(req, res)) return;
 
   const user = db_users.find((usr) => usr.username === req.session.user);
 
   if (!user) {
     // TODO: I dunno what to do, this should never happen
+    nv.error(
+      "Database corruption: previously authenticated user is no longer a valid user"
+    );
     res.status(456).json({
       status: "ERROR",
       error: "Database got corrupted, please contact an administrator",
@@ -280,17 +285,19 @@ app.delete("/api/devices/:eid([0-9a-fA-F]{16})", (req, res) => {
     return;
   }
 
-  const eid = req.params.eid;
+  const eui = req.params.eui;
 
-  if (!validator.isEIDValid(eid)) {
+  // TODO: Not sure this check is relevant since Express already filters the route based on a regex
+  if (!validator.isEUIValid(eui)) {
     res.status(400).json({
       status: "ERROR",
-      error: "EID format invalid",
+      error: "EUI format invalid",
     });
     return;
   }
 
-  if (!user.devices.find((devEID) => devEID === eid)) {
+  if (!user.devices.find((devEUI) => devEUI === eui)) {
+    nv.info(`Device ${eui} not registered by ${user.username}`);
     res.status(400).json({
       status: "ERROR",
       error: "Device has not been registered",
@@ -298,13 +305,16 @@ app.delete("/api/devices/:eid([0-9a-fA-F]{16})", (req, res) => {
     return;
   }
 
-  user.devices = user.devices.filter((devEID) => devEID !== eid);
+  user.devices = user.devices.filter((devEUI) => devEUI !== eui);
   writeJSONToFile(db_users, "./data/users.json");
 
-  let device = db_devices.find((dev) => dev.eid === eid);
+  let device = db_devices.find((dev) => dev.eui === eui);
 
   if (!device) {
     // TODO: I dunno what to do, this should never happen
+    nv.error(
+      "Database corruption: previously registered device is no longer a valid device"
+    );
     res.status(456).json({
       status: "ERROR",
       error: "Database got corrupted, please contact an administrator",
@@ -314,26 +324,24 @@ app.delete("/api/devices/:eid([0-9a-fA-F]{16})", (req, res) => {
     device.owners = device.owners.filter((usr) => usr !== user.username);
   }
   writeJSONToFile(db_devices, "./data/devices.json");
+  nv.info(`Device ${eui} successfully deleted for ${user.username}`);
   res.status(200).json({
     status: "OK",
   });
 });
 
 app.get("/api/devices", (req, res) => {
-  nv.log(req);
+  nv.request(req);
 
-  if (!req.session.user) {
-    res.status(401).json({
-      status: "ERROR",
-      error: "Authentication required",
-    });
-    return;
-  }
+  if (!verifyAuthentication(req, res)) return;
 
   const user = db_users.find((usr) => usr.username === req.session.user);
 
   if (!user) {
     // TODO: I dunno what to do, this should never happen
+    nv.error(
+      "Database corruption: previously authenticated user is no longer a valid user"
+    );
     res.status(456).json({
       status: "ERROR",
       error: "Database got corrupted, please contact an administrator",
@@ -341,27 +349,97 @@ app.get("/api/devices", (req, res) => {
     return;
   }
 
+  nv.info(`Successfully fetched devices for ${user.username}`);
   res.status(200).json({
     devices: user.devices,
   });
 });
 
-app.get("/api/devices/:eid([0-9a-fA-F]{16})", (req, res) => {
-  nv.log(req);
+app.get("/api/devices/:eui([0-9a-fA-F]{16})", (req, res) => {
+  nv.request(req);
 
-  // TODO: Make sure user is authenticated
-  if (false && !req.session.user) {
-    res.status(401).json({
+  if (!verifyAuthentication(req, res)) return;
+
+  const user = db_users.find((usr) => usr.username === req.session.user);
+
+  if (!user) {
+    // TODO: I dunno what to do, this should never happen
+    nv.error(
+      "Database corruption: previously authenticated user is no longer a valid user"
+    );
+    res.status(456).json({
       status: "ERROR",
-      error: "Authentication required",
+      error: "Database got corrupted, please contact an administrator",
     });
     return;
   }
 
-  const eid = req.params.eid;
+  const eui = req.params.eui;
 
-  axios
-    .get(`${config.LoRaWan.endpoint.host}/devices/${eid}`, {
+  // TODO: Not sure this check is relevant since Express already filters the route based on a regex
+  if (!validator.isEUIValid(eui)) {
+    res.status(400).json({
+      status: "ERROR",
+      error: "EUI format invalid",
+    });
+    return;
+  }
+
+  if (!user.devices.find((devEUI) => devEUI === eui)) {
+    nv.info(`Device ${eui} not registered by ${user.username}`);
+    res.status(400).json({
+      status: "ERROR",
+      error: "Device has not been registered",
+    });
+    return;
+  }
+
+  let device = db_devices.find((dev) => dev.eui === eui);
+
+  if (!device) {
+    // TODO: I dunno what to do, this should never happen
+    nv.error(
+      "Database corruption: previously registered device is no longer a valid device"
+    );
+    res.status(456).json({
+      status: "ERROR",
+      error: "Database got corrupted, please contact an administrator",
+    });
+    return;
+  }
+
+  // Get current time in Unix Timestamp format
+  const now = new Date().getTime();
+  const latestStoredPos = device.positions[0];
+
+  // If the latest stored position is too recent, send this position to the frontend client
+  if (
+    latestStoredPos &&
+    now - latestStoredPos.timestamp < config.LoRaWan.delay * 1000
+  ) {
+    nv.info(
+      `Successfully fetched last stored position for device ${device.eui} from server cache`
+    );
+    res.status(200).json(latestStoredPos);
+    return;
+  }
+
+  // The latest position is too old, make an API call to the LoRaWan endpoint to obtain the latest position
+  const latestPos = {}; // TODO: Replace with a call to CampusIoT to get POS
+
+  device.positions.unshift(latestPos);
+  if (device.positions.length > config.deviceMaxPos) {
+    device.positions.pop();
+  }
+
+  writeJSONToFile(db_devices, "./data/devices.json");
+  nv.info(
+    `Successfully retrieved latest known position for device ${device.eui} from LoRaWan endpoint`
+  );
+  res.status(200).json(latestPos);
+
+  /* axios
+    .get(`${config.LoRaWan.endpoint.host}/devices/${eui}`, {
       headers: { "Grpc-Metadata-Authorization": `Bearer ${JWT_TOKEN}` },
     })
     .then((res2) => {
@@ -371,11 +449,12 @@ app.get("/api/devices/:eid([0-9a-fA-F]{16})", (req, res) => {
     .catch((err) => {
       console.log(err);
       res.send("An error occured");
-    });
+    }); */
 });
 
 app.use(function (req, res) {
-  nv.log(req);
+  nv.request(req);
+  nv.info(`Page not found: ${req.originalUrl}`);
   res.status(404).json({
     status: "ERROR",
     error: "Page not found",
@@ -383,22 +462,19 @@ app.use(function (req, res) {
 });
 
 app.listen(config.port, () => {
-  console.log(`psp-backend listening at http://localhost:${config.port}`);
+  nv.info(`psp-backend listening at http://localhost:${config.port}`);
 });
 
 function getJWT() {
   // POST request to LoRaWan endpoint with group credentials to obtain a valid JWT
   return axios
-    .post(
-      config.LoRaWan.endpoint.host + "/internal/login",
-      config.LoRaWan.endpoint.credentials
-    )
+    .post(config.LoRaWan.endpoint.host + "/internal/login", credentials)
     .then((res) => {
-      console.log(`JWT token successfully retrieved: ${res.data.jwt}`);
+      nv.info(`JWT token successfully retrieved: ${res.data.jwt}`);
       return res.data.jwt;
     })
     .catch((error) => {
-      console.error(error);
+      nv.error(error);
       return null;
     });
 }
@@ -410,9 +486,22 @@ function writeJSONToFile(obj, path) {
   // Attempt to write file to disk
   fs.writeFile(path, data, "utf8", (err) => {
     if (err) {
-      console.error(`Error writing data to ${path}: ${err}`);
+      nv.error(`Error writing data to ${path}: ${err}`);
     } else {
-      console.log(`Successfully updated data in ${path}!`);
+      nv.info(`Successfully updated data in ${path}!`);
     }
   });
+}
+
+function verifyAuthentication(req, res) {
+  if (!req.session.user) {
+    nv.info("Authentication required");
+    res.status(401).json({
+      status: "ERROR",
+      error: "Authentication required",
+    });
+    return false;
+  }
+
+  return true;
 }

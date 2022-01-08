@@ -1,7 +1,10 @@
 [
   {
-    "eid": "E24F43FFFE44D05F",
+    "eui": "E24F43FFFE44D05F",
     "owners": ["foo"],
-    "positions": []
+    "positions": [
+      {},
+      { "latitude": 17.385044, "longitude": 78.486671, "timestamp": 1641545775 }
+    ]
   }
 ]

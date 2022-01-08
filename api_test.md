@@ -11,7 +11,8 @@ The two following sections contain the complete set of commands for two users: *
 - **authenticate user:** `curl -X POST -d 'username=johndoe' -d 'password=Azerty12345#' -c cookie1.txt http://localhost:3000/api/users/authenticate`
 - **register device:** `curl -X POST -b cookie1.txt http://localhost:3000/api/devices/E24F43FFFE44D05F`
 - **get all devices:** `curl -X GET -b cookie1.txt http://localhost:3000/api/devices`
-- **remove a device:** `curl -X DELETE -b cookie1.txt http://localhost:3000/api/devices/E24F43FFFE44D05F/`
+- **get device:** `curl -X GET -b cookie1.txt http://localhost:3000/api/devices/E24F43FFFE44D05F`
+- **remove a device:** `curl -X DELETE -b cookie1.txt http://localhost:3000/api/devices/E24F43FFFE44D05F`
 
 ## Commands for foo
 
@@ -19,4 +20,5 @@ The two following sections contain the complete set of commands for two users: *
 - **authenticate user:** `curl -X POST -d 'username=foo' -d 'password=#FooF00#' -c cookie2.txt http://localhost:3000/api/users/authenticate`
 - **register device:** `curl -X POST -b cookie2.txt http://localhost:3000/api/devices/E24F43FFFE44D05F`
 - **get all devices:** `curl -X GET -b cookie2.txt http://localhost:3000/api/devices`
-- **remove a device:** `curl -X DELETE -b cookie2.txt http://localhost:3000/api/devices/E24F43FFFE44D05F/`
+- **get device:** `curl -X GET -b cookie2.txt http://localhost:3000/api/devices/E24F43FFFE44D05F`
+- **remove a device:** `curl -X DELETE -b cookie2.txt http://localhost:3000/api/devices/E24F43FFFE44D05F`

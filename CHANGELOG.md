@@ -68,3 +68,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed regular expression in function **isEIDValid** in [validator.js](./validator.js)
 - Fixed error message in function **validateUserRegisterForm** in [validator.js](./validator.js)
+
+## [1.1.0] - 2022-01-07
+
+### Added
+
+- Added new command line in [api_test.md](./api_test.md) for newly added route **GET /api/devices/:eui**
+- Added new configuration options in [config.json](./config.json):
+  - **deviceMaxPos**: maximum number of cached device positions in server file [devices.json](./data/devices.json)
+  - **delay**: API call cooldown to LoRaWan endpoint (the greater the better). Used to limit API workload
+- Improved logging component [novlog.js](./novlog.js):
+  - Added additional log information (date, time, log type)
+  - On top of log messages appearing in the console, all transactions are logged to a specific daily log file in [logs](./logs) folder
+  - Renamed and refactored log functions
+  - Added new log functions for different log types
+- Added log messages in [index.js](./index.js)
+- Started implementing route **GET /api/devices/:eui** in [index.js](./index.js):
+  - Currently checks timestamps of stored device positions and compare them to current time to determine whether or not the information has become obsolete (delay can be modified in [config.json](./config.json))
+  - **_TODO: Make correct API call to LoRaWan endpoint to get actual GPS data_**
+
+### Changed
+
+- Moved credentials from [config.json](./config.json) to [credentials.json](./credentials.json) (untracked in [.gitignore](./.gitignore))
+- Fixed typo (eid -> eui):
+  - Updated occurences in [README](./README.md) and [index.js](./index.js)
+  - Renamed function **isEIDValid** to **isEUIValid** in [validator.js](./validator.js)
+- Refactored authentication checks in [index.js](./index.js) into a seperate method **verifyAuthentication**

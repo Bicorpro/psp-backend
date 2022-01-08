@@ -2,14 +2,12 @@
   "port": 3000,
   "secret": "TODO: Replace this message with an actual secret later",
   "saltRounds": 10,
+  "deviceMaxPos": 5,
   "LoRaWan": {
     "endpoint": {
       "host": "https://lns.campusiot.imag.fr/api",
-      "port": 443,
-      "credentials": {
-        "username": "Info5G3",
-        "password": "wAlO+oVOMvpoDw=="
-      }
-    }
+      "port": 443
+    },
+    "delay": 30
   }
 }

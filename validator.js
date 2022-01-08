@@ -21,7 +21,7 @@ function isPasswordValid(password) {
 }
 
 // The eid must be a valid hexadecimal value of length 16
-function isEIDValid(eid) {
+function isEUIValid(eid) {
   return eid && eid.match(/^[0-9a-fA-F]{16}$/);
 }
 
@@ -39,4 +39,4 @@ function validateUserRegisterForm(username, email, password, callback) {
   callback(err);
 }
 
-module.exports = { validateUserRegisterForm, isEIDValid };
+module.exports = { validateUserRegisterForm, isEUIValid };

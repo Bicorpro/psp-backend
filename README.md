@@ -20,10 +20,10 @@ Make sur you have both [npm](https://www.npmjs.com/) and [Node.js](https://nodej
   - register (POST /api/users/register) -> register (login and password in body)
   - authenticate (POST /api/users/authenticate) -> login and password in body, get a cookie when authentified
 - device/tracker:
-  - register (POST /api/devices/{eid}) -> register a new device for the authenticated user (device eid in GET)
+  - register (POST /api/devices/{eui}) -> register a new device for the authenticated user (device eui in GET)
   - get devices (GET /api/devices) -> get all devices registered by authenticated user
-  - get device (GET /api/devices/{eid}) -> get device with {id} from authenticated user
-  - delete (DELETE /api/devices/{eid}) -> unregister device with {id} from authenticated user
+  - get device (GET /api/devices/{eui}) -> get device with {eui} from authenticated user
+  - delete (DELETE /api/devices/{eui}) -> unregister device with {eui} from authenticated user
 
 ## Response types
 

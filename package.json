@@ -1,6 +1,6 @@
 {
   "name": "psp-backend",
-  "version": "1.0.3",
+  "version": "1.1.0",
   "description": "Node.js backend for the PSP project using the Express framework",
   "main": "index.js",
   "scripts": {
