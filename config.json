@@ -3,6 +3,10 @@
   "secret": "TODO: Replace this message with an actual secret later",
   "saltRounds": 10,
   "deviceMaxPos": 5,
+  "webapp": {
+    "host": "http://localhost",
+    "port": 8080
+  },
   "LoRaWan": {
     "endpoint": {
       "host": "https://lns.campusiot.imag.fr/api",

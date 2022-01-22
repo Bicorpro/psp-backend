@@ -7,8 +7,8 @@ The two following sections contain the complete set of commands for two users: *
 
 ## Commands for johndoe
 
-- **register user:** `curl -X POST -d 'username=johndoe' -d 'email=johndoe@pspmail.com' -d 'password=Azerty12345#' http://localhost:3000/api/users/register`
-- **authenticate user:** `curl -X POST -d 'username=johndoe' -d 'password=Azerty12345#' -c cookie1.txt http://localhost:3000/api/users/authenticate`
+- **register user:** `curl -X POST -d 'username=johndoe' -d 'email=johndoe@pspmail.com' -d 'password=Azerty12345#' http://localhost:3000/api/register`
+- **authenticate user:** `curl -X POST -d 'username=johndoe' -d 'password=Azerty12345#' -c cookie1.txt http://localhost:3000/api/authenticate`
 - **register device:** `curl -X POST -b cookie1.txt http://localhost:3000/api/devices/E24F43FFFE44D05F`
 - **get all devices:** `curl -X GET -b cookie1.txt http://localhost:3000/api/devices`
 - **get device:** `curl -X GET -b cookie1.txt http://localhost:3000/api/devices/E24F43FFFE44D05F`
@@ -16,8 +16,8 @@ The two following sections contain the complete set of commands for two users: *
 
 ## Commands for foo
 
-- **register user:** `curl -X POST -d 'username=foo' -d 'email=foo@foomail.com' -d 'password=#FooF00#' http://localhost:3000/api/users/register`
-- **authenticate user:** `curl -X POST -d 'username=foo' -d 'password=#FooF00#' -c cookie2.txt http://localhost:3000/api/users/authenticate`
+- **register user:** `curl -X POST -d 'username=foo' -d 'email=foo@foomail.com' -d 'password=#FooF00#' http://localhost:3000/api/register`
+- **authenticate user:** `curl -X POST -d 'username=foo' -d 'password=#FooF00#' -c cookie2.txt http://localhost:3000/api/authenticate`
 - **register device:** `curl -X POST -b cookie2.txt http://localhost:3000/api/devices/E24F43FFFE44D05F`
 - **get all devices:** `curl -X GET -b cookie2.txt http://localhost:3000/api/devices`
 - **get device:** `curl -X GET -b cookie2.txt http://localhost:3000/api/devices/E24F43FFFE44D05F`

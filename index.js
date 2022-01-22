@@ -3,6 +3,7 @@ const axios = require("axios");
 const fs = require("fs");
 
 const express = require("express");
+const cors = require("cors");
 const bodyParser = require("body-parser");
 var session = require("express-session");
 
@@ -23,6 +24,11 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Use the session middleware
 app.use(
+  cors({
+    origin: `${config.webapp.host}:${config.webapp.port}`,
+    credentials: true,
+  }),
+  express.json(), // automatically parse requests workload as JSON
   session({
     secret: config.secret,
     resave: false,
@@ -58,7 +64,7 @@ app.get("/api", (req, res) => {
 });
 
 /**
- * @api [post] /api/users/register
+ * @api [post] /api/register
  * description: "Creates a new user in the database matching the information given by the user"
  * parameters:
  *  - (query) username  {String} The username of the user
@@ -70,7 +76,7 @@ app.get("/api", (req, res) => {
  *  400:
  *    description: The user could not be registered
  */
-app.post("/api/users/register", (req, res) => {
+app.post("/api/register", (req, res) => {
   nv.request(req);
   // Get username, email and password from POST body
   const username = req.body.username;
@@ -143,40 +149,75 @@ app.post("/api/users/register", (req, res) => {
   });
 });
 
-app.post("/api/users/authenticate", (req, res) => {
+app.post("/api/authenticate", (req, res) => {
   nv.request(req);
   const username = req.body.username;
   const password = req.body.password;
 
-  const user = db_users.find(
-    (usr) => usr.username === username || usr.email === username
-  );
-
-  if (!user) {
-    nv.info(`Unregistered user ${username} attempted to login`);
-    res.status(400).json({
-      status: "ERROR",
-      error: "Invalid login",
-    });
-    return;
-  }
-
-  // Load hash from your password DB.
-  bcrypt.compare(password, user.password, function (err, result) {
-    if (result) {
-      req.session.user = user.username;
-      nv.info(`Successfull authentication for ${username}`);
-      res.status(200).json({
-        status: "OK",
+  // Validate the form information entered by the user
+  validator.validateUserAuthenticateForm(username, password, (err) => {
+    // if the form information is invalid, send the error to the frontend
+    if (err) {
+      nv.info(`Authentication form error: ${err}`);
+      res.status(400).json({
+        status: "ERROR",
+        error: err,
       });
-    } else {
-      nv.error(err);
+      return;
+    }
+
+    const user = db_users.find(
+      (usr) => usr.username === username || usr.email === username
+    );
+
+    if (!user) {
+      nv.info(`Unregistered user ${username} attempted to login`);
       res.status(400).json({
         status: "ERROR",
         error: "Invalid login",
       });
+      return;
     }
+
+    // Load hash from your password DB.
+    bcrypt.compare(password, user.password, function (err, result) {
+      if (result) {
+        req.session.user = user.username;
+        nv.info(`Successfull authentication for ${username}`);
+        res.status(200).json({
+          status: "OK",
+        });
+      } else {
+        nv.error(err);
+        res.status(400).json({
+          status: "ERROR",
+          error: "Invalid login",
+        });
+      }
+    });
   });
+});
+
+app.post("/api/logout", (req, res) => {
+  nv.request(req);
+
+  if (!verifyAuthentication(req, res)) return;
+
+  if (req.session) {
+    const user = req.session.user;
+    req.session.destroy((err) => {
+      if (err) {
+        nv.error(`Failed to delete session for ${user}`);
+        res.status(400).json({
+          status: "ERROR",
+          error: "Failed to logout",
+        });
+      } else {
+        nv.error(`Successfully deleted session for ${user}`);
+        res.status(200).clearCookie("connect.sid").json({ status: "OK" });
+      }
+    });
+  }
 });
 
 /**
@@ -425,7 +466,11 @@ app.get("/api/devices/:eui([0-9a-fA-F]{16})", (req, res) => {
   }
 
   // The latest position is too old, make an API call to the LoRaWan endpoint to obtain the latest position
-  const latestPos = {}; // TODO: Replace with a call to CampusIoT to get POS
+  const latestPos = {
+    latitude: 45.20415,
+    longitude: 5.6933013,
+    timestamp: now,
+  }; // TODO: Replace with a call to CampusIoT to get POS
 
   device.positions.unshift(latestPos);
   if (device.positions.length > config.deviceMaxPos) {

@@ -94,3 +94,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated occurences in [README](./README.md) and [index.js](./index.js)
   - Renamed function **isEIDValid** to **isEUIValid** in [validator.js](./validator.js)
 - Refactored authentication checks in [index.js](./index.js) into a seperate method **verifyAuthentication**
+
+## [1.2.0] - 2022-01-22
+
+### Added
+
+- Added new validator **validateUserAuthenticateForm** in [validator.js](./validator.js) to validate authentication forms
+- Added **webapp** configuration in [config.json](./config.json)
+- Added **CORS** between **server** and **webapp**
+- Added authentication form checks for route **/api/authenticate** in [index.js](./index.js)
+- Added new route **POST /api/logout** in [index.js](./index.js)
+
+### Changed
+
+- Changed existing routes in [index.js](./index.js):
+  - **POST /api/users/register** was changed to **POST /api/register**
+  - **POST /api/users/authenticate** was changed to **POST /api/authenticate**
+  - Updated tests in [api_test.md](./api_test.md) accordingly
+  - Temporarily hardcoded fake GPS data in **GET /api/devices/:eui([0-9a-fA-F]{16})** for **webapp** testing
+- Updated [README](./README.md) to list the newly implemented **logout** route

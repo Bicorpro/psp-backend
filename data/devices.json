@@ -3,8 +3,31 @@
     "eui": "E24F43FFFE44D05F",
     "owners": ["foo"],
     "positions": [
-      {},
-      { "latitude": 17.385044, "longitude": 78.486671, "timestamp": 1641545775 }
+      {
+        "latitude": 45.20415,
+        "longitude": 5.6933013,
+        "timestamp": 1642783359392
+      },
+      {
+        "latitude": 45.20415,
+        "longitude": 5.6933013,
+        "timestamp": 1642783183571
+      },
+      {
+        "latitude": 45.20415,
+        "longitude": 5.6933013,
+        "timestamp": 1642783127569
+      },
+      {
+        "latitude": 45.20415,
+        "longitude": 5.6933013,
+        "timestamp": 1642783095144
+      },
+      {
+        "latitude": 45.20415,
+        "longitude": 5.6933013,
+        "timestamp": 1642783032762
+      }
     ]
   }
 ]

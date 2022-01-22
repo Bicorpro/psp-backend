@@ -12,13 +12,14 @@ Make sur you have both [npm](https://www.npmjs.com/) and [Node.js](https://nodej
 
 - Clone this repository in the command line
 - Type `npm install` and press enter to install all the required dependencies
-- Run the backend by typing `npm run start`
+- Run the backend by typing `npm start`
 
 ## Supported API methods
 
 - user:
-  - register (POST /api/users/register) -> register (login and password in body)
-  - authenticate (POST /api/users/authenticate) -> login and password in body, get a cookie when authentified
+  - register (POST /api/register) -> register (login and password in body)
+  - authenticate (POST /api/authenticate) -> login and password in body, get a cookie when authentified
+  - logout (POST /api/logout) -> logout user, delete sessions and request frontend to delete cookie
 - device/tracker:
   - register (POST /api/devices/{eui}) -> register a new device for the authenticated user (device eui in GET)
   - get devices (GET /api/devices) -> get all devices registered by authenticated user
