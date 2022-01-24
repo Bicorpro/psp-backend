@@ -12,6 +12,7 @@ const bcrypt = require("bcrypt");
 // Local dependencies
 const validator = require("./validator.js");
 const nv = require("./novlog.js");
+const pt = require("./peter.js");
 
 // Load configuration and data files
 const config = require("./config.json");
@@ -466,11 +467,12 @@ app.get("/api/devices/:eui([0-9a-fA-F]{16})", (req, res) => {
   }
 
   // The latest position is too old, make an API call to the LoRaWan endpoint to obtain the latest position
-  const latestPos = {
+  /*  const latestPos = {
     latitude: 45.20415,
     longitude: 5.6933013,
     timestamp: now,
-  }; // TODO: Replace with a call to CampusIoT to get POS
+  }; // TODO: Replace with a call to CampusIoT to get POS */
+  const latestPos = pt.getPeterPos(); // call to Peter module to get fake card data
 
   device.positions.unshift(latestPos);
   if (device.positions.length > config.deviceMaxPos) {

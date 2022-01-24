@@ -12,6 +12,28 @@
       "host": "https://lns.campusiot.imag.fr/api",
       "port": 443
     },
-    "delay": 30
+    "delay": 3
+  },
+  "peter": {
+    "states": [
+      {
+        "name": "WALK",
+        "speed": 4.72,
+        "minProb": 0.715,
+        "streak": 12
+      },
+      {
+        "name": "RUN",
+        "speed": 29.8,
+        "minProb": 0.945,
+        "streak": 4
+      },
+      {
+        "name": "IDLE",
+        "speed": 0,
+        "minProb": 1,
+        "streak": 7
+      }
+    ]
   }
 }

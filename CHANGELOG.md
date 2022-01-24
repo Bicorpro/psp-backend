@@ -113,3 +113,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Updated tests in [api_test.md](./api_test.md) accordingly
   - Temporarily hardcoded fake GPS data in **GET /api/devices/:eui([0-9a-fA-F]{16})** for **webapp** testing
 - Updated [README](./README.md) to list the newly implemented **logout** route
+
+## [1.3.0] - 2022-01-24
+
+### Added
+
+- Added new service [peter](./peter.js) to generate fake pet data
+
+### Changed
+
+- Added config for the **peter** service in [config.json](./config.json)
+- Replaced hardcoded data in [index.js](./index.js) by call to **peter** service
