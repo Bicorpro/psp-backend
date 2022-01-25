@@ -124,3 +124,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Added config for the **peter** service in [config.json](./config.json)
 - Replaced hardcoded data in [index.js](./index.js) by call to **peter** service
+
+## [1.3.1] - 2022-01-25
+
+### Fixed
+
+- Set max password length to **50** characters in [validator.js](./validator.js)
